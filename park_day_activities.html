@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Park Day — A1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2b2240;
+    --coral:#ff7a59;
+    --coral-deep:#ef5d3a;
+    --sunny:#ffc24b;
+    --paper:#fff7ee;
+    --card:#ffffffee;
+    --correct:#2fa86a;       /* GREEN — only for correct/checked */
+    --correct-bg:#e6f7ee;
+    --wrong:#e5484d;
+    --wrong-bg:#fdecec;
+    --line:#ead9c6;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Nunito',system-ui,sans-serif;
+    color:var(--ink);
+    background:#bfe9fb;
+    overflow-x:hidden;
+  }
+  /* SKY (changes morning -> sunset with fun meter) */
+  #sky{position:fixed;inset:0;z-index:-2;transition:background 1.1s ease}
+  #sun{position:fixed;z-index:-1;right:8%;bottom:-40px;width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle at 40% 40%,#fff6d8,#ffcf5e 55%,#ff9d3d 100%);
+    box-shadow:0 0 60px 24px #ffd87a88;transition:transform 1.1s ease,opacity 1.1s ease;opacity:.55}
+  #hills{position:fixed;left:0;right:0;bottom:0;z-index:-1;height:130px}
+
+  .wrap{max-width:760px;margin:0 auto;padding:10px 12px 26px;position:relative}
+
+  /* HUD */
+  .hud{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;
+    background:var(--card);backdrop-filter:blur(4px);border:2px solid #ffffff;
+    border-radius:16px;padding:8px 10px;margin-bottom:10px;box-shadow:0 6px 18px #0002}
+  .mascot{flex:0 0 auto}
+  .hud-mid{flex:1 1 auto;min-width:0}
+  .score-row{display:flex;align-items:center;gap:8px;font-weight:900}
+  .score{font-size:20px;color:var(--coral-deep);transition:transform .18s}
+  .score.bump{transform:scale(1.35)}
+  .star{font-size:16px}
+  .funwrap{margin-top:5px}
+  .funlabel{font-size:11px;font-weight:800;color:var(--ink);opacity:.75;display:flex;justify-content:space-between}
+  .funbar{height:13px;border-radius:8px;background:#ffe8d2;overflow:hidden;border:1px solid #fff}
+  .funfill{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,#ffd35e,#ff7a59);transition:width .5s ease}
+  .stagepill{flex:0 0 auto;font-size:11px;font-weight:900;background:var(--ink);color:#fff;border-radius:20px;padding:4px 9px}
+
+  .card{background:var(--card);border:2px solid #fff;border-radius:20px;padding:16px 14px 18px;
+    box-shadow:0 10px 26px #0002;animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  h1{font-size:26px;margin:0 0 4px;font-weight:900;letter-spacing:-.5px}
+  h2{font-size:19px;margin:0 0 2px;font-weight:900}
+  .lead{font-size:14px;font-weight:700;color:#6b5d52;margin:0 0 12px}
+  .prompt{font-size:15px;font-weight:800;margin:2px 0 12px}
+  .big-emoji{font-size:64px;text-align:center;line-height:1;margin:4px 0 12px;filter:drop-shadow(0 6px 10px #0002)}
+
+  .btn{font-family:inherit;font-weight:900;border:none;border-radius:14px;cursor:pointer;
+    padding:13px 18px;font-size:16px;background:var(--coral);color:#fff;box-shadow:0 4px 0 var(--coral-deep);
+    transition:transform .08s}
+  .btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--coral-deep)}
+  .btn.ghost{background:#fff;color:var(--ink);box-shadow:0 4px 0 #d9cbbb;border:2px solid #f0e3d4}
+  .btn.wide{width:100%;margin-top:6px}
+  .btn:disabled{opacity:.45;cursor:default}
+
+  /* option grids */
+  .grid6{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(min-width:520px){.grid6{grid-template-columns:repeat(3,1fr)}}
+  .opt{font-family:inherit;font-weight:800;font-size:15px;border:2px solid #f0e3d4;background:#fff;color:var(--ink);
+    border-radius:14px;padding:14px 8px;cursor:pointer;min-height:54px;transition:transform .08s,border-color .12s}
+  .opt:active{transform:scale(.97)}
+  .opt.correct{background:var(--correct-bg);border-color:var(--correct);color:var(--correct)}
+  .opt.wrong{background:var(--wrong-bg);border-color:var(--wrong);color:var(--wrong)}
+  .opt:disabled{cursor:default}
+
+  /* memory / pairs */
+  .pairs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pcol{display:flex;flex-direction:column;gap:8px}
+  .pcard{font-weight:800;font-size:14px;border:2px solid #f0e3d4;background:#fff;border-radius:13px;
+    padding:11px 8px;cursor:pointer;min-height:46px;display:flex;align-items:center;justify-content:center;
+    text-align:center;transition:transform .08s,border-color .12s}
+  .pcard:active{transform:scale(.97)}
+  .pcard.sel{border-color:var(--coral);background:#fff2ea}
+  .pcard.done{background:var(--correct-bg);border-color:var(--correct);color:var(--correct);cursor:default;opacity:.8}
+  .pcard.miss{border-color:var(--wrong);background:var(--wrong-bg)}
+
+  /* input */
+  .tin{font-family:inherit;font-weight:800;font-size:17px;width:100%;padding:13px 12px;border-radius:13px;
+    border:2px solid #e7d8c6;text-align:center}
+  .tin:focus{outline:none;border-color:var(--coral)}
+
+  /* chips (build sentence) */
+  .tray{min-height:54px;border:2px dashed #e0cfba;border-radius:13px;padding:8px;display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;background:#fffdfa}
+  .bank{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+  .chip{font-family:inherit;font-weight:800;font-size:15px;border:2px solid #f0e3d4;background:#fff;color:var(--ink);
+    border-radius:11px;padding:9px 12px;cursor:pointer}
+  .chip.used{opacity:.32;cursor:default}
+  .chip.intray{background:#fff2ea;border-color:var(--coral)}
+
+  .row{display:flex;gap:8px;margin-top:8px}
+  .row .btn{flex:1}
+
+  /* boss */
+  .bossbox{text-align:center}
+  .hpwrap{max-width:320px;margin:8px auto 4px}
+  .hplabel{font-size:12px;font-weight:900;display:flex;justify-content:space-between;color:var(--ink)}
+  .hpbar{height:16px;border-radius:9px;background:#efe2f3;border:1px solid #fff;overflow:hidden}
+  .hpfill{height:100%;background:linear-gradient(90deg,#b56cff,#7a3cff);transition:width .4s}
+  .hit{animation:shake .35s}
+  @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+  /* feedback overlay */
+  .fb{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:18px;background:#0003}
+  .fb.show{display:flex}
+  .fbcard{background:#fff;border-radius:18px;padding:18px 16px;max-width:380px;width:100%;text-align:center;
+    box-shadow:0 18px 40px #0004;position:relative;animation:pop .2s ease}
+  .fbcard.ok{border:3px solid var(--correct)}
+  .fbcard.no{border:3px solid var(--wrong)}
+  .fbtitle{font-size:22px;font-weight:900;margin:2px 0 6px}
+  .fbcard.ok .fbtitle{color:var(--correct)}
+  .fbcard.no .fbtitle{color:var(--wrong)}
+  .fbans{font-size:16px;font-weight:800;margin-top:6px}
+  .fbans b{color:var(--correct)}
+  .close{position:absolute;top:8px;right:10px;font-size:24px;font-weight:900;line-height:1;background:none;border:none;cursor:pointer;color:#9b8c7d}
+  .fbnext{margin-top:12px}
+
+  .center{text-align:center}
+  .small{font-size:13px;font-weight:700;color:#6b5d52}
+  .hint{font-size:13px;font-weight:800;color:var(--coral-deep);margin-top:8px;text-align:center}
+  .vocablist{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0}
+  .vocablist span{background:#fff;border:1px solid #f0e3d4;border-radius:20px;padding:5px 11px;font-size:13px;font-weight:800}
+  .stars-big{font-size:34px;letter-spacing:4px}
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="sun"></div>
+<svg id="hills" viewBox="0 0 760 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0 90 Q120 40 260 80 T540 70 T760 88 V130 H0 Z" fill="#7bb86b" opacity=".55"/>
+  <path d="M0 110 Q160 70 360 100 T760 105 V130 H0 Z" fill="#5e9d54" opacity=".75"/>
+</svg>
+
+<div class="wrap">
+  <!-- HUD -->
+  <div class="hud">
+    <div class="mascot">
+      <svg width="46" height="46" viewBox="0 0 64 64" aria-hidden="true">
+        <ellipse cx="32" cy="58" rx="18" ry="4" fill="#0001"/>
+        <path d="M14 22 Q8 10 18 14 L24 22Z" fill="#e58a4a"/>
+        <path d="M50 22 Q56 10 46 14 L40 22Z" fill="#e58a4a"/>
+        <circle cx="32" cy="34" r="20" fill="#f5a35c"/>
+        <circle cx="32" cy="40" r="13" fill="#ffd9b0"/>
+        <circle cx="25" cy="31" r="3.2" fill="#2b2240"/>
+        <circle cx="39" cy="31" r="3.2" fill="#2b2240"/>
+        <circle cx="26" cy="30" r="1" fill="#fff"/>
+        <circle cx="40" cy="30" r="1" fill="#fff"/>
+        <ellipse cx="32" cy="38" rx="3" ry="2.3" fill="#2b2240"/>
+        <path d="M32 40 Q32 45 28 45 M32 40 Q32 45 36 45" stroke="#2b2240" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="hud-mid">
+      <div class="score-row">
+        <span class="score" id="score">0</span>
+        <span class="star" id="stars">⭐</span>
+        <span class="small" id="qcount" style="margin-left:auto"></span>
+      </div>
+      <div class="funwrap">
+        <div class="funlabel"><span>☀️ Fun meter</span><span id="funpct">утро</span></div>
+        <div class="funbar"><div class="funfill" id="funfill"></div></div>
+      </div>
+    </div>
+    <div class="stagepill" id="pill">Старт</div>
+  </div>
+
+  <div id="stage"></div>
+</div>
+
+<!-- feedback -->
+<div class="fb" id="fb">
+  <div class="fbcard" id="fbcard">
+    <button class="close" id="fbclose" aria-label="Закрыть">×</button>
+    <div class="fbtitle" id="fbtitle"></div>
+    <div class="fbans" id="fbans"></div>
+    <button class="btn fbnext" id="fbnext">Дальше →</button>
+  </div>
+</div>
+
+<script>
+/* ===================== STATE ===================== */
+const TARGET_CORRECT = 54;          // morning -> full sunset
+const MAX_SCORE = 540;
+const STAR3=486, STAR2=378, STAR1=270;
+const state = { score:0, corrects:0, stageIndex:0 };
+
+/* ===================== HUD HELPERS ===================== */
+const $ = id => document.getElementById(id);
+function bump(){ const s=$('score'); s.classList.add('bump'); setTimeout(()=>s.classList.remove('bump'),200); }
+function updateStars(){
+  let st='⭐';
+  if(state.score>=STAR3) st='⭐⭐⭐';
+  else if(state.score>=STAR2) st='⭐⭐';
+  else if(state.score>=STAR1) st='⭐';
+  $('stars').textContent=st;
+}
+function lerp(a,b,t){return Math.round(a+(b-a)*t);}
+function setSky(){
+  const t=Math.min(1,state.corrects/TARGET_CORRECT);
+  // top: morning blue -> sunset orange ; bottom: pale -> golden
+  const topC=`rgb(${lerp(159,255,t)},${lerp(216,138,t)},${lerp(240,91,t)})`;
+  const botC=`rgb(${lerp(232,255,t)},${lerp(247,206,t)},${lerp(255,128,t)})`;
+  $('sky').style.background=`linear-gradient(180deg,${topC},${botC})`;
+  $('sun').style.transform=`translateY(${-t*140}px)`;
+  $('sun').style.opacity=0.55+0.35*t;
+  $('funfill').style.width=(t*100)+'%';
+  $('funpct').textContent = t<0.34?'утро':(t<0.7?'день':'закат 🌅');
+}
+function award(){
+  state.score+=10; state.corrects++;
+  $('score').textContent=state.score;
+  bump(); updateStars(); setSky();
+}
+setSky();
+
+/* ===================== FEEDBACK ===================== */
+let onClose=null, onNext=null;
+function showCorrect(advance){
+  const c=$('fbcard'); c.className='fbcard ok';
+  $('fbtitle').textContent='ВЕРНО! +10 ⭐';
+  $('fbans').textContent=''; $('fbclose').style.display='none'; $('fbnext').style.display='none';
+  $('fb').classList.add('show');
+  setTimeout(()=>{ $('fb').classList.remove('show'); advance&&advance(); }, 1300);
+}
+/* wrong: NEVER auto-dismiss. Manual × / Дальше. */
+function showWrong(opts){
+  // opts: {answer, retry, advance, msg}
+  const c=$('fbcard'); c.className='fbcard no';
+  $('fbtitle').textContent = opts.msg || 'Не верно';
+  $('fbclose').style.display='block'; $('fbnext').style.display='inline-block';
+  if(opts.answer){ $('fbans').innerHTML='Правильный ответ: <b>'+opts.answer+'</b>'; }
+  else { $('fbans').textContent=''; }
+  $('fbnext').textContent = opts.retry ? 'Ещё попытка ↺' : 'Дальше →';
+  $('fb').classList.add('show');
+  const done=()=>{ $('fb').classList.remove('show'); opts.retry?opts.retry():opts.advance(); };
+  onClose=done; onNext=done;
+}
+$('fbclose').onclick=()=>{ if(onClose)onClose(); };
+$('fbnext').onclick=()=>{ if(onNext)onNext(); };
+
+/* ===================== TEXT NORMALIZE ===================== */
+function norm(s){
+  return s.toLowerCase()
+    .replace(/[’‘`´]/g,'')      // curly/straight apostrophes -> removed
+    .replace(/['"]/g,'')
+    .replace(/[.,!?;:]/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+function compact(s){ return norm(s).replace(/\s+/g,''); }
+function matchAny(input, accepted){
+  const ni=norm(input), ci=compact(input);
+  return accepted.some(a => norm(a)===ni || compact(a)===ci);
+}
+
+/* ===================== VOCAB DATA ===================== */
+const VOCAB=[
+  {en:'play basketball',     ru:'играть в баскетбол',          ing:'playing basketball', emoji:'🏀'},
+  {en:'play a game',         ru:'играть в игру',               ing:'playing a game',     emoji:'🎲'},
+  {en:'ride a bike',         ru:'кататься на велосипеде',      ing:'riding a bike',      emoji:'🚲'},
+  {en:'rollerblade',         ru:'кататься на роликах',         ing:'rollerblading',      emoji:'🛼'},
+  {en:'play soccer',         ru:'играть в футбол',             ing:'playing soccer',     emoji:'⚽'},
+  {en:'play baseball',       ru:'играть в бейсбол',            ing:'playing baseball',   emoji:'⚾'},
+  {en:'skateboard',          ru:'кататься на скейтборде',      ing:'skateboarding',      emoji:'🛹'},
+  {en:'play hide and seek',  ru:'играть в прятки',             ing:'playing hide and seek', emoji:'🫣'},
+  {en:'fly a kite',          ru:'запускать воздушного змея',   ing:'flying a kite',      emoji:'🪁'},
+  {en:'jump rope',           ru:'прыгать через скакалку',      ing:'jumping rope',       emoji:'🤸'},
+];
+
+/* build accepted answers for "They're + -ing" with full flexibility */
+function ingAccepted(item){
+  // core spelling variants for the noun
+  const cores=[item.ing];
+  const sp={
+    'playing basketball':['playing basket ball'],
+    'playing baseball':['playing base ball'],
+    'skateboarding':['skate boarding'],
+    'rollerblading':['roller blading','roller-blading'],
+    'playing a game':['playing game'],
+    'riding a bike':['riding bike'],
+    'flying a kite':['flying kite'],
+    'playing hide and seek':['playing hide-and-seek'],
+  }[item.ing];
+  if(sp) cores.push(...sp);
+  const prefixes=['', 'theyre ', 'they are '];
+  const out=[];
+  cores.forEach(c=>prefixes.forEach(p=>out.push(p+c)));
+  return out;
+}
+
+/* ===================== STAGE RENDERING ===================== */
+const stageEl=$('stage');
+function setPill(t){ $('pill').textContent=t; }
+function setCount(done,total){ $('qcount').textContent=done+'/'+total; }
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ---------- INTRO ---------- */
+function renderIntro(){
+  setPill('Старт'); $('qcount').textContent='';
+  stageEl.innerHTML=`
+    <div class="card center">
+      <div class="big-emoji">🌅🏀🪁</div>
+      <h1>Park Day</h1>
+      <p class="lead">Целый день в парке! Учим, что делают дети, и наполняем небо солнцем.</p>
+      <div class="vocablist">${VOCAB.map(v=>`<span>${v.emoji} ${v.en}</span>`).join('')}</div>
+      <p class="small">Грамматика: <b>What are they doing? — They're playing soccer.</b></p>
+      <button class="btn wide" id="startbtn">Поехали! 🚀</button>
+    </div>`;
+  $('startbtn').onclick=()=>{ state.stageIndex=0; runStage(); };
+}
+
+/* ---------- STAGE 1: PAIRS (RU <-> EN) ---------- */
+function stagePairs(done){
+  setPill('1 · Пары'); 
+  const items=shuffle(VOCAB);
+  let total=items.length, matched=0, selEn=null, selRu=null, lock=false;
+  setCount(0,total);
+  const enList=shuffle(items), ruList=shuffle(items);
+  stageEl.innerHTML=`
+    <div class="card">
+      <h2>Соедини пары 🧩</h2>
+      <p class="lead">Нажми английскую фразу, потом её перевод.</p>
+      <div class="pairs">
+        <div class="pcol" id="colEn">${enList.map(v=>`<button class="pcard" data-k="${v.en}">${v.emoji} ${v.en}</button>`).join('')}</div>
+        <div class="pcol" id="colRu">${ruList.map(v=>`<button class="pcard" data-k="${v.en}">${v.ru}</button>`).join('')}</div>
+      </div>
+    </div>`;
+  function clear(){ if(selEn){selEn.classList.remove('sel');} if(selRu){selRu.classList.remove('sel');} selEn=selRu=null; }
+  function check(){
+    if(!selEn||!selRu) return;
+    lock=true;
+    if(selEn.dataset.k===selRu.dataset.k){
+      selEn.classList.add('done'); selRu.classList.add('done');
+      selEn.disabled=selRu.disabled=true;
+      award(); matched++; setCount(matched,total);
+      const a=selEn,b=selRu; clear();
+      showCorrect(()=>{ lock=false; if(matched===total) setTimeout(done,200); });
+    } else {
+      const a=selEn,b=selRu; a.classList.add('miss'); b.classList.add('miss');
+      showWrong({ msg:'Не та пара 🙂', advance:()=>{ a.classList.remove('miss','sel'); b.classList.remove('miss','sel'); clear(); lock=false; } });
+    }
+  }
+  stageEl.querySelectorAll('#colEn .pcard').forEach(b=>b.onclick=()=>{ if(lock||b.disabled)return; if(selEn)selEn.classList.remove('sel'); selEn=b; b.classList.add('sel'); check(); });
+  stageEl.querySelectorAll('#colRu .pcard').forEach(b=>b.onclick=()=>{ if(lock||b.disabled)return; if(selRu)selRu.classList.remove('sel'); selRu=b; b.classList.add('sel'); check(); });
+}
+
+/* ---------- STAGE 2: IMAGE -> 6 OPTIONS ---------- */
+function stageImageMC(done){
+  setPill('2 · Картинки');
+  const qs=shuffle(VOCAB).slice(0,8);
+  let i=0; setCount(0,qs.length);
+  function render(){
+    const q=qs[i];
+    const opts=shuffle([q, ...shuffle(VOCAB.filter(v=>v.en!==q.en)).slice(0,5)]);
+    stageEl.innerHTML=`
+      <div class="card center">
+        <h2>Что это? 👀</h2>
+        <p class="lead">Выбери правильную фразу.</p>
+        <div class="big-emoji">${q.emoji}</div>
+        <div class="grid6" id="opts">
+          ${opts.map(o=>`<button class="opt" data-k="${o.en}">${o.en}</button>`).join('')}
+        </div>
+      </div>`;
+    stageEl.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+      stageEl.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+      if(b.dataset.k===q.en){
+        b.classList.add('correct'); award();
+        showCorrect(()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); });
+      } else {
+        b.classList.add('wrong');
+        stageEl.querySelector(`.opt[data-k="${CSS.escape(q.en)}"]`).classList.add('correct');
+        showWrong({ answer:q.en, advance:()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); } });
+      }
+    });
+  }
+  render();
+}
+
+/* ---------- STAGE 3: TYPE "They're ...ing" ---------- */
+function stageTypeIng(done){
+  setPill('3 · Печать');
+  const qs=shuffle(VOCAB).slice(0,8);
+  let i=0, tries=0; setCount(0,qs.length);
+  function render(){
+    tries=0;
+    const q=qs[i];
+    stageEl.innerHTML=`
+      <div class="card center">
+        <h2>What are they doing? ✍️</h2>
+        <p class="lead">Напиши предложение: <b>They're ...ing</b></p>
+        <div class="big-emoji">${q.emoji}</div>
+        <input class="tin" id="ans" placeholder="They're ..." autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button class="btn wide" id="chk">Проверить</button>
+        <div class="hint">подсказка: ${q.en} → -ing</div>
+      </div>`;
+    const inp=$('ans'); inp.focus();
+    const accepted=ingAccepted(q);
+    const pretty="They're "+q.ing+".";
+    function go(){
+      const val=inp.value.trim();
+      if(!val) return;
+      if(matchAny(val,accepted)){
+        award(); showCorrect(()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); });
+      } else {
+        tries++;
+        stageEl.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+        if(tries<2){
+          showWrong({ msg:'Почти! Попробуй ещё раз 🙂', retry:()=>{ inp.value=''; inp.focus(); } });
+        } else {
+          showWrong({ answer:pretty, advance:()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); } });
+        }
+      }
+    }
+    $('chk').onclick=go;
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter')go(); });
+  }
+  render();
+}
+
+/* ---------- STAGE 4: BUILD SENTENCE ---------- */
+function stageBuild(done){
+  setPill('4 · Собери');
+  const pick=shuffle(VOCAB).slice(0,6);
+  // chip arrays + ordered correct answers
+  const data=pick.map(v=>{
+    const words = ("They're "+v.ing).split(' ');
+    return {words, correct:words.join(' '), emoji:v.emoji};
+  });
+  let i=0, tries=0; setCount(0,data.length);
+  function render(){
+    tries=0;
+    const q=data[i];
+    const bank=shuffle(q.words.map((w,idx)=>({w,id:idx})));
+    let tray=[];
+    stageEl.innerHTML=`
+      <div class="card center">
+        <h2>Собери предложение 🧱</h2>
+        <p class="lead">Нажимай слова по порядку.</p>
+        <div class="big-emoji">${q.emoji}</div>
+        <div class="tray" id="tray"></div>
+        <div class="bank" id="bank">
+          ${bank.map(b=>`<button class="chip" data-id="${b.id}">${b.w}</button>`).join('')}
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="reset">Сбросить ↺</button>
+          <button class="btn" id="chk">Проверить</button>
+        </div>
+      </div>`;
+    const trayEl=$('tray');
+    function draw(){
+      trayEl.innerHTML=tray.map(t=>`<button class="chip intray" data-tid="${t.id}">${t.w}</button>`).join('');
+      trayEl.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+        const id=+c.dataset.tid; tray=tray.filter(t=>t.id!==id);
+        const bk=stageEl.querySelector(`#bank .chip[data-id="${id}"]`); if(bk)bk.classList.remove('used');
+        draw();
+      });
+    }
+    stageEl.querySelectorAll('#bank .chip').forEach(c=>c.onclick=()=>{
+      if(c.classList.contains('used'))return;
+      c.classList.add('used'); tray.push({id:+c.dataset.id, w:c.textContent}); draw();
+    });
+    $('reset').onclick=()=>{ tray=[]; stageEl.querySelectorAll('#bank .chip').forEach(c=>c.classList.remove('used')); draw(); };
+    $('chk').onclick=()=>{
+      const built=tray.map(t=>t.w).join(' ');
+      if(norm(built)===norm(q.correct)){
+        award(); showCorrect(()=>{ i++; setCount(i,data.length); i<data.length?render():done(); });
+      } else {
+        tries++;
+        if(tries<2){
+          showWrong({ msg:'Порядок не тот 🙂', retry:()=>{} });
+        } else {
+          showWrong({ answer:q.correct+'.', advance:()=>{ i++; setCount(i,data.length); i<data.length?render():done(); } });
+        }
+      }
+    };
+  }
+  render();
+}
+
+/* ---------- STAGE 5: TRUE / FALSE ---------- */
+function stageTF(done){
+  setPill('5 · Правда?');
+  // 8 items: emoji + a "They're ...ing" sentence; decide true/false
+  const base=shuffle(VOCAB);
+  const qs=[];
+  for(let k=0;k<8;k++){
+    const real=base[k%base.length];
+    const isTrue=Math.random()<0.5;
+    let shown=real;
+    if(!isTrue){ shown=shuffle(VOCAB.filter(v=>v.en!==real.en))[0]; }
+    qs.push({emoji:real.emoji, text:"They're "+shown.ing+".", answer:isTrue, real});
+  }
+  let i=0; setCount(0,qs.length);
+  function render(){
+    const q=qs[i];
+    stageEl.innerHTML=`
+      <div class="card center">
+        <h2>Правда или нет? 🤔</h2>
+        <p class="lead">Подходит ли предложение к картинке?</p>
+        <div class="big-emoji">${q.emoji}</div>
+        <p class="prompt">${q.text}</p>
+        <div class="row">
+          <button class="btn" data-v="true">✅ True</button>
+          <button class="btn ghost" data-v="false">❌ False</button>
+        </div>
+      </div>`;
+    stageEl.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>{
+      const val = b.dataset.v==='true';
+      stageEl.querySelectorAll('button[data-v]').forEach(x=>x.disabled=true);
+      if(val===q.answer){
+        award(); showCorrect(()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); });
+      } else {
+        const corr = q.answer ? 'True ✅' : ('False ❌ — на самом деле: They\'re '+q.real.ing+'.');
+        showWrong({ answer:corr, advance:()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); } });
+      }
+    });
+  }
+  render();
+}
+
+/* ---------- STAGE 6: ANAGRAM ---------- */
+function stageAnagram(done){
+  setPill('6 · Анаграмма');
+  // single content words to unscramble
+  const pool=[
+    {word:'soccer', ru:'футбол', emoji:'⚽'},
+    {word:'baseball', ru:'бейсбол', emoji:'⚾'},
+    {word:'basketball', ru:'баскетбол', emoji:'🏀'},
+    {word:'skateboard', ru:'скейтборд', emoji:'🛹'},
+    {word:'rollerblade', ru:'ролики', emoji:'🛼'},
+    {word:'kite', ru:'воздушный змей', emoji:'🪁'},
+    {word:'bike', ru:'велосипед', emoji:'🚲'},
+    {word:'rope', ru:'скакалка', emoji:'🤸'},
+  ];
+  const qs=shuffle(pool).slice(0,6);
+  let i=0, tries=0; setCount(0,qs.length);
+  function scramble(w){ let s; do{ s=shuffle(w.split('')).join(''); }while(s===w); return s; }
+  function render(){
+    tries=0;
+    const q=qs[i];
+    stageEl.innerHTML=`
+      <div class="card center">
+        <h2>Расшифруй слово 🔤</h2>
+        <p class="lead">${q.emoji} ${q.ru}</p>
+        <p class="big-emoji" style="font-size:34px;letter-spacing:6px;font-weight:900">${scramble(q.word).toUpperCase()}</p>
+        <input class="tin" id="ans" placeholder="..." autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button class="btn wide" id="chk">Проверить</button>
+      </div>`;
+    const inp=$('ans'); inp.focus();
+    function go(){
+      const v=inp.value.trim();
+      if(!v)return;
+      if(norm(v)===norm(q.word)){
+        award(); showCorrect(()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); });
+      } else {
+        tries++;
+        if(tries<2){ showWrong({ msg:'Не то слово 🙂', retry:()=>{ inp.value=''; inp.focus(); } }); }
+        else { showWrong({ answer:q.word, advance:()=>{ i++; setCount(i,qs.length); i<qs.length?render():done(); } }); }
+      }
+    }
+    $('chk').onclick=go;
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter')go(); });
+  }
+  render();
+}
+
+/* ---------- STAGE 7: BOSS ---------- */
+function stageBoss(done){
+  setPill('🐉 Босс');
+  let hp=8; const maxHp=8;
+  const pool=shuffle(VOCAB);
+  let qi=0;
+  function bossSVG(angry){
+    return `<svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+      <ellipse cx="60" cy="108" rx="34" ry="6" fill="#0001"/>
+      <path d="M30 70 Q15 70 18 55 Q8 50 18 42 Q14 28 30 32 Q40 16 60 22 Q82 14 92 34 Q108 32 100 48 Q112 56 98 64 Q104 78 86 76 Q70 90 30 70Z" fill="#8a5cff"/>
+      <circle cx="46" cy="52" r="9" fill="#fff"/><circle cx="74" cy="52" r="9" fill="#fff"/>
+      <circle cx="${angry?48:46}" cy="54" r="4.5" fill="#2b2240"/><circle cx="${angry?72:74}" cy="54" r="4.5" fill="#2b2240"/>
+      <path d="M38 44 L54 50 M82 44 L66 50" stroke="#2b2240" stroke-width="3" stroke-linecap="round"/>
+      <path d="${angry?'M44 74 Q60 64 76 74':'M44 70 Q60 80 76 70'}" stroke="#2b2240" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  }
+  function render(){
+    const q=pool[qi%pool.length];
+    const opts=shuffle([q, ...shuffle(VOCAB.filter(v=>v.en!==q.en)).slice(0,3)]);
+    stageEl.innerHTML=`
+      <div class="card bossbox">
+        <h2>Босс: Скукотрон 😈</h2>
+        <p class="lead">Каждый верный ответ бьёт его. Ошибка — он лечится!</p>
+        <div id="bsvg">${bossSVG(false)}</div>
+        <div class="hpwrap">
+          <div class="hplabel"><span>HP</span><span id="hpnum">${hp}/${maxHp}</span></div>
+          <div class="hpbar"><div class="hpfill" id="hpfill" style="width:${hp/maxHp*100}%"></div></div>
+        </div>
+        <div class="big-emoji" style="font-size:48px">${q.emoji}</div>
+        <p class="prompt">What are they doing?</p>
+        <div class="grid6" id="opts">
+          ${opts.map(o=>`<button class="opt" data-k="${o.en}">They're ${o.ing}</button>`).join('')}
+        </div>
+      </div>`;
+    stageEl.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+      stageEl.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+      if(b.dataset.k===q.en){
+        b.classList.add('correct'); award();
+        hp=Math.max(0,hp-1);
+        showCorrect(()=>{ if(hp<=0){ bossWin(); } else { qi++; render(); } });
+      } else {
+        b.classList.add('wrong');
+        stageEl.querySelector(`.opt[data-k="${CSS.escape(q.en)}"]`).classList.add('correct');
+        hp=Math.min(maxHp,hp+1);
+        $('bsvg').innerHTML=bossSVG(true);
+        $('bsvg').classList.add('hit'); setTimeout(()=>$('bsvg').classList.remove('hit'),350);
+        showWrong({ answer:"They're "+q.ing, advance:()=>{ qi++; render(); } });
+      }
+    });
+  }
+  function bossWin(){ done(); }
+  render();
+}
+
+/* ---------- FINISH ---------- */
+function renderFinish(){
+  setPill('Финиш'); $('qcount').textContent='';
+  let st='⭐', word='Хорошо!';
+  if(state.score>=STAR3){st='⭐⭐⭐'; word='Превосходно!';}
+  else if(state.score>=STAR2){st='⭐⭐'; word='Отлично!';}
+  else if(state.score>=STAR1){st='⭐'; word='Молодец!';}
+  stageEl.innerHTML=`
+    <div class="card center">
+      <div class="big-emoji">🌅🎉</div>
+      <h1>${word}</h1>
+      <div class="stars-big">${st}</div>
+      <p class="lead" style="margin-top:10px">Очки: <b>${state.score}</b> из ${MAX_SCORE}</p>
+      <p class="small">Небо стало закатным 🌇 — день в парке удался!</p>
+      <button class="btn wide" id="again">Играть снова ↺</button>
+    </div>`;
+  $('again').onclick=()=>{ state.score=0; state.corrects=0; $('score').textContent='0'; updateStars(); setSky(); renderIntro(); };
+}
+
+/* ===================== FLOW ===================== */
+const STAGES=[stagePairs, stageImageMC, stageTypeIng, stageBuild, stageTF, stageAnagram, stageBoss];
+function runStage(){
+  if(state.stageIndex>=STAGES.length){ renderFinish(); return; }
+  const fn=STAGES[state.stageIndex];
+  fn(()=>{ state.stageIndex++; runStage(); });
+}
+renderIntro();
+</script>
+</body>
+</html>
